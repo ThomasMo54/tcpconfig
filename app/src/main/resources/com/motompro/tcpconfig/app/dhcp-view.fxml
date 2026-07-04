@@ -37,7 +37,7 @@
                   </Button>
                </children>
             </VBox>
-            <VBox fx:id="historyVBox" minHeight="20.0" prefWidth="350.0" spacing="5.0">
+            <VBox fx:id="historyVBox" minHeight="20.0" prefWidth="450.0" spacing="5.0">
                <children>
                   <Text strokeType="OUTSIDE" strokeWidth="0.0" text="Historique" />
                   <ListView fx:id="historyListView" minHeight="20.0" />
