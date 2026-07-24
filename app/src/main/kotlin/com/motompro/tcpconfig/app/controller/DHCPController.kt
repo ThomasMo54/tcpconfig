@@ -12,6 +12,7 @@ import javafx.fxml.FXMLLoader
 import javafx.scene.control.Button
 import javafx.scene.control.ComboBox
 import javafx.scene.control.ListView
+import javafx.scene.control.TextField
 import javafx.scene.image.Image
 import javafx.scene.image.ImageView
 import javafx.scene.layout.BorderPane
@@ -36,6 +37,18 @@ class DHCPController : DHCPServerListener {
     private lateinit var historyVBox: VBox
     @FXML
     private lateinit var historyListView: ListView<String>
+    @FXML
+    private lateinit var reservationsVBox: VBox
+    @FXML
+    private lateinit var reservationMacTextField: TextField
+    @FXML
+    private lateinit var reservationIpTextField: TextField
+    @FXML
+    private lateinit var addReservationButton: Button
+    @FXML
+    private lateinit var removeReservationButton: Button
+    @FXML
+    private lateinit var reservationsListView: ListView<String>
 
     private lateinit var ipRangeComponent: RangeComponent
     lateinit var tab: DraggableTab
@@ -44,6 +57,7 @@ class DHCPController : DHCPServerListener {
     private fun initialize() {
         historyListView.prefHeightProperty().bind((historyVBox.parent as HBox).heightProperty())
         historyVBox.prefHeightProperty().bind((historyVBox.parent as HBox).heightProperty())
+        reservationsVBox.prefHeightProperty().bind((historyVBox.parent as HBox).heightProperty())
 
         // Add range component
         val fxmlLoader = FXMLLoader(TCPConfigApp::class.java.getResource("range-component.fxml"))
@@ -72,6 +86,7 @@ class DHCPController : DHCPServerListener {
             historyListView.items.add(it)
         }
         historyListView.scrollTo(historyListView.items.size - 1)
+        refreshReservationsListView()
         if (dhcpServer.isStarted) {
             startButtonImage.image = serverStartedIcon
             startButton.text = "Arrêter"
@@ -121,10 +136,48 @@ class DHCPController : DHCPServerListener {
         TCPConfigApp.INSTANCE.showInfoAlert("Serveur DHCP", "Le serveur DHCP a bien été démarré")
     }
 
+    @FXML
+    private fun onAddReservationButtonClick() {
+        val macAddress = reservationMacTextField.text.trim()
+        val ipAddress = reservationIpTextField.text.trim()
+
+        if (!macAddress.matches(TCPConfigApp.MAC_ADDRESS_REGEX)) {
+            TCPConfigApp.INSTANCE.showErrorAlert("Erreur", "L'adresse MAC est mal formatée.")
+            return
+        }
+        if (!ipAddress.matches(TCPConfigApp.IP_ADDRESS_REGEX)) {
+            TCPConfigApp.INSTANCE.showErrorAlert("Erreur", "L'adresse IP est mal formatée.")
+            return
+        }
+
+        TCPConfigApp.INSTANCE.dhcpServer.addReservation(macAddress, ipAddress)
+        reservationMacTextField.clear()
+        reservationIpTextField.clear()
+        refreshReservationsListView()
+    }
+
+    @FXML
+    private fun onRemoveReservationButtonClick() {
+        val selectedItem = reservationsListView.selectionModel.selectedItem ?: return
+        val macAddress = selectedItem.substringBefore(" -> ")
+        TCPConfigApp.INSTANCE.dhcpServer.removeReservation(macAddress)
+        refreshReservationsListView()
+    }
+
+    private fun refreshReservationsListView() {
+        reservationsListView.items.setAll(
+            TCPConfigApp.INSTANCE.dhcpServer.reservations.map { (macAddress, ipAddress) -> "${macAddress.chunked(2).joinToString(":")} -> $ipAddress" }
+        )
+    }
+
     private fun setInputsDisabled(disabled: Boolean) {
         netInterfaceComboBox.isDisable = disabled
         ipRangeComponent.rangeStartTextField.isDisable = disabled
         ipRangeComponent.rangeEndTextField.isDisable = disabled
+        reservationMacTextField.isDisable = disabled
+        reservationIpTextField.isDisable = disabled
+        addReservationButton.isDisable = disabled
+        removeReservationButton.isDisable = disabled
     }
 
     override fun onServerStart(history: ServerStartHistory) {

@@ -221,6 +221,7 @@ class TCPConfigApp : Application() {
     companion object {
         const val WINDOW_TITLE = "TCPConfig"
         val IP_ADDRESS_REGEX = "^((25[0-5]|(2[0-4]|1\\d|[1-9]|)\\d)\\.?\\b){4}\$".toRegex()
+        val MAC_ADDRESS_REGEX = "^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\$".toRegex()
 
         lateinit var INSTANCE: TCPConfigApp
             private set

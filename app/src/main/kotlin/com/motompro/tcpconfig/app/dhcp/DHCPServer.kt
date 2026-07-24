@@ -40,11 +40,23 @@ class DHCPServer {
     val history: List<DHCPHistoryItem>
         get() = _history
     private val _history = mutableListOf<DHCPHistoryItem>()
+    val reservations: Map<String, String>
+        get() = _reservations
+    private val _reservations = LinkedHashMap<String, String>()
+
+    fun addReservation(macAddress: String, ipAddress: String) {
+        val formattedIp = ipAddress.split(".").joinToString(".") { it.toInt().toString() }
+        _reservations[normalizeMacAddress(macAddress)] = formattedIp
+    }
+
+    fun removeReservation(macAddress: String) {
+        _reservations.remove(normalizeMacAddress(macAddress))
+    }
 
     fun start(networkAdapter: String, ipRange: IPRange) {
         this.networkAdapter = networkAdapter
         this.ipRange = ipRange
-        ipIterator = ipRange.ipList.iterator()
+        ipIterator = ipRange.ipList.filterNot { it in _reservations.values }.iterator()
         ipTable.clear()
         _history.clear()
 
@@ -80,8 +92,9 @@ class DHCPServer {
 
                 // Cancel treatment if the client is the server
                 if (clientHostName == hostName) continue
+                val reservedIp = _reservations[normalizeMacAddress(clientHardwareAddress)]
                 // Cancel treatment if no ip address remaining
-                if (!ipTable.containsKey(clientHardwareAddress) && !ipIterator.hasNext()) continue
+                if (!ipTable.containsKey(clientHardwareAddress) && reservedIp == null && !ipIterator.hasNext()) continue
 
                 // DHCPDISCOVER
                 if (messageType == DHCPConstants.DHCPDISCOVER) {
@@ -89,7 +102,7 @@ class DHCPServer {
                     val ipAddress = if (ipTable.containsKey(clientHardwareAddress)) {
                         ipTable[clientHardwareAddress]!!
                     } else {
-                        val ip = ipIterator.next()
+                        val ip = reservedIp ?: ipIterator.next()
                         ipTable[clientHardwareAddress] = ip
                         ip
                     }
@@ -137,5 +150,9 @@ class DHCPServer {
         isStarted = false
         socket?.close()
         connectionThread?.cancel()
+    }
+
+    companion object {
+        fun normalizeMacAddress(macAddress: String): String = macAddress.replace(Regex("[:-]"), "").uppercase()
     }
 }
